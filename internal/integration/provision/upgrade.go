@@ -69,12 +69,12 @@ type upgradeSpec struct {
 
 const (
 	previousRelease = "v0.10.4"
-	stableRelease   = "v0.11.0-beta.0" // or soon-to-be-stable
+	stableRelease   = "v0.11.1" // or soon-to-be-stable
 	// The current version (the one being built on CI) is DefaultSettings.CurrentVersion.
 
-	previousK8sVersion = "1.21.0" // constants.DefaultKubernetesVersion in the previousRelease
+	previousK8sVersion = "1.21.1" // constants.DefaultKubernetesVersion in the previousRelease
 	stableK8sVersion   = "1.21.2" // constants.DefaultKubernetesVersion in the stableRelease
-	currentK8sVersion  = "1.21.2" // next k8s version being tested
+	currentK8sVersion  = constants.DefaultKubernetesVersion
 )
 
 var defaultNameservers = []net.IP{net.ParseIP("8.8.8.8"), net.ParseIP("1.1.1.1")}
