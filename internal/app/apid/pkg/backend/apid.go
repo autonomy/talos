@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/talos-systems/talos/pkg/grpc/factory"
 	"github.com/talos-systems/talos/pkg/grpc/middleware/authz"
 	"github.com/talos-systems/talos/pkg/machinery/api/common"
 	"github.com/talos-systems/talos/pkg/machinery/constants"
@@ -132,7 +133,7 @@ func (a *APID) GetConnection(ctx context.Context) (context.Context, *grpc.Client
 // which builds 'common.Metadata' field, append it to original 'Response' message, build new header
 // for new length of some 'Response', and add back new field header.
 func (a *APID) AppendInfo(streaming bool, resp []byte) ([]byte, error) {
-	payload, err := proto.Marshal(&common.Empty{
+	payload, err := factory.VTProtoCodec{}.Marshal(&common.Empty{
 		Metadata: &common.Metadata{
 			Hostname: a.target,
 		},
@@ -215,7 +216,7 @@ func (a *APID) BuildError(streaming bool, err error) ([]byte, error) {
 		}
 	}
 
-	return proto.Marshal(resp)
+	return factory.VTProtoCodec{}.Marshal(resp)
 }
 
 // Close connection.

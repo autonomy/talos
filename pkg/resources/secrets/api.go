@@ -13,6 +13,7 @@ import (
 	"github.com/talos-systems/crypto/x509"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/talos-systems/talos/pkg/grpc/factory"
 	secretspb "github.com/talos-systems/talos/pkg/machinery/api/resource/secrets"
 )
 
@@ -49,7 +50,7 @@ func (spec *APICertsSpec) MarshalProto() ([]byte, error) {
 		},
 	}
 
-	return proto.Marshal(&protoSpec)
+	return factory.VTProtoCodec{}.Marshal(&protoSpec)
 }
 
 // NewAPI initializes a Etc resource.

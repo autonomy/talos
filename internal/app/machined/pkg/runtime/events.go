@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/talos-systems/talos/pkg/grpc/factory"
 	"github.com/talos-systems/talos/pkg/machinery/api/machine"
 )
 
@@ -101,7 +102,7 @@ type EventStream interface {
 
 // ToMachineEvent serializes Event as proto message machine.Event.
 func (event *Event) ToMachineEvent() (*machine.Event, error) {
-	value, err := proto.Marshal(event.Payload)
+	value, err := factory.VTProtoCodec{}.Marshal(event.Payload)
 	if err != nil {
 		return nil, err
 	}
