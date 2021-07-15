@@ -15,7 +15,6 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/evanphx/json-patch v4.11.0+incompatible
 	github.com/ghodss/yaml v1.0.0
-	github.com/golang/protobuf v1.5.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jsimonetti/rtnetlink v0.0.0-20210614053835-9c52e516c709
 	github.com/mdlayher/ethtool v0.0.0-20210210192532-2b88debcdd43
