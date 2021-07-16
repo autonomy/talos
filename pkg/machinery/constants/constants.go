@@ -239,6 +239,9 @@ const (
 	// DefaultCoreDNSVersion is the default version for the CoreDNS.
 	DefaultCoreDNSVersion = "1.8.4"
 
+	// DefaultCoreDNSReplicas is the enforced CoreDNS number of desired replicas.
+	DefaultCoreDNSReplicas = 2
+
 	// LabelNodeRoleMaster is the node label required by a control plane node.
 	LabelNodeRoleMaster = "node-role.kubernetes.io/master"
 

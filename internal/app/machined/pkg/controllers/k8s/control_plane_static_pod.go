@@ -305,6 +305,7 @@ func (ctrl *ControlPlaneStaticPodController) manageControllerManager(ctx context
 		fmt.Sprintf("--service-cluster-ip-range=%s", cfg.ServiceCIDR),
 		fmt.Sprintf("--cluster-signing-cert-file=%s", filepath.Join(constants.KubernetesControllerManagerSecretsDir, "ca.crt")),
 		fmt.Sprintf("--cluster-signing-key-file=%s", filepath.Join(constants.KubernetesControllerManagerSecretsDir, "ca.key")),
+		"--controllers=*,tokencleaner",
 		"--configure-cloud-routes=false",
 		fmt.Sprintf("--kubeconfig=%s", filepath.Join(constants.KubernetesControllerManagerSecretsDir, "kubeconfig")),
 		fmt.Sprintf("--authentication-kubeconfig=%s", filepath.Join(constants.KubernetesControllerManagerSecretsDir, "kubeconfig")),

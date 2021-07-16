@@ -359,6 +359,7 @@ type Token interface {
 type CoreDNS interface {
 	Enabled() bool
 	Image() string
+	Replicas() int
 }
 
 // ExternalCloudProvider defines settings for external cloud provider.

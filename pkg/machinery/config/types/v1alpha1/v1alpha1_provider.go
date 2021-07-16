@@ -953,6 +953,17 @@ func (c *CoreDNS) Image() string {
 	return coreDNSImage
 }
 
+// Replicas implements the config.Provider interface.
+func (c *CoreDNS) Replicas() int {
+	coreDNSReplicas := constants.DefaultCoreDNSReplicas
+
+	if c.CoreDNSReplicas > 0 {
+		coreDNSReplicas = c.CoreDNSReplicas
+	}
+
+	return coreDNSReplicas
+}
+
 // CertLifetime implements the config.Provider interface.
 func (a *AdminKubeconfigConfig) CertLifetime() time.Duration {
 	if a.AdminKubeconfigCertLifetime == 0 {

@@ -82,6 +82,7 @@ func (ctrl *ManifestController) Run(ctx context.Context, r controller.Runtime, l
 			return err
 		}
 
+		configVersion := configResource.(*config.K8sControlPlane).Metadata().Version().String()
 		config := configResource.(*config.K8sControlPlane).Manifests()
 
 		secretsResources, err := r.Get(ctx, resource.NewMetadata(secrets.NamespaceName, secrets.RootType, secrets.RootKubernetesID, resource.VersionUndefined))
@@ -99,7 +100,7 @@ func (ctrl *ManifestController) Run(ctx context.Context, r controller.Runtime, l
 
 		secrets := secretsResources.(*secrets.Root).KubernetesSpec()
 
-		renderedManifests, err := ctrl.render(config, secrets)
+		renderedManifests, err := ctrl.render(configVersion, config, secrets)
 		if err != nil {
 			return err
 		}
@@ -154,12 +155,14 @@ func jsonify(input string) (string, error) {
 	return string(out), err
 }
 
-func (ctrl *ManifestController) render(cfg config.K8sManifestsSpec, scrt *secrets.RootKubernetesSpec) ([]renderedManifest, error) {
+func (ctrl *ManifestController) render(version string, cfg config.K8sManifestsSpec, scrt *secrets.RootKubernetesSpec) ([]renderedManifest, error) {
 	templateConfig := struct {
+		ConfigVersion string
 		config.K8sManifestsSpec
 
 		Secrets *secrets.RootKubernetesSpec
 	}{
+		ConfigVersion:    version,
 		K8sManifestsSpec: cfg,
 		Secrets:          scrt,
 	}
@@ -186,14 +189,6 @@ func (ctrl *ManifestController) render(cfg config.K8sManifestsSpec, scrt *secret
 				{"11-core-dns-svc", coreDNSSvcTemplate},
 			}...,
 		)
-
-		if cfg.DNSServiceIPv6 != "" {
-			defaultManifests = append(defaultManifests,
-				[]manifestDesc{
-					{"11-core-dns-v6-svc", coreDNSv6SvcTemplate},
-				}...,
-			)
-		}
 	}
 
 	if cfg.FlannelEnabled {

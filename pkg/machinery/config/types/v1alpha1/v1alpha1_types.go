@@ -331,7 +331,8 @@ var (
 	clusterEtcdImageExample = (&EtcdConfig{}).Image()
 
 	clusterCoreDNSExample = &CoreDNS{
-		CoreDNSImage: (&CoreDNS{}).Image(),
+		CoreDNSImage:    (&CoreDNS{}).Image(),
+		CoreDNSReplicas: 2,
 	}
 
 	clusterExternalCloudProviderConfigExample = &ExternalCloudProviderConfig{
@@ -1072,6 +1073,10 @@ type CoreDNS struct {
 	//   description: |
 	//     The `image` field is an override to the default coredns image.
 	CoreDNSImage string `yaml:"image,omitempty"`
+	//   description: |
+	//     The `replicas` field is an override to the default coredns number of desired replicas.
+	//     The default is `2`.
+	CoreDNSReplicas int `yaml:"replicas,omitempty"`
 }
 
 // Endpoint represents the endpoint URL parsed out of the machine config.
