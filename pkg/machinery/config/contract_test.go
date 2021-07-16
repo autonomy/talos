@@ -48,6 +48,15 @@ func TestContractCurrent(t *testing.T) {
 	assert.True(t, config.TalosVersionCurrent.SupportsECDSAKeys())
 	assert.True(t, config.TalosVersionCurrent.SupportsServiceAccount())
 	assert.True(t, config.TalosVersionCurrent.SupportsRBACFeature())
+	assert.True(t, config.TalosVersionCurrent.SupportsDynamicCertSANs())
+}
+
+func TestContract0_12(t *testing.T) {
+	assert.True(t, config.TalosVersion0_12.SupportsAggregatorCA())
+	assert.True(t, config.TalosVersion0_12.SupportsECDSAKeys())
+	assert.True(t, config.TalosVersion0_12.SupportsServiceAccount())
+	assert.True(t, config.TalosVersion0_12.SupportsRBACFeature())
+	assert.True(t, config.TalosVersion0_12.SupportsDynamicCertSANs())
 }
 
 func TestContract0_11(t *testing.T) {
@@ -55,6 +64,7 @@ func TestContract0_11(t *testing.T) {
 	assert.True(t, config.TalosVersion0_11.SupportsECDSAKeys())
 	assert.True(t, config.TalosVersion0_11.SupportsServiceAccount())
 	assert.True(t, config.TalosVersion0_11.SupportsRBACFeature())
+	assert.False(t, config.TalosVersion0_11.SupportsDynamicCertSANs())
 }
 
 func TestContract0_10(t *testing.T) {
@@ -62,6 +72,7 @@ func TestContract0_10(t *testing.T) {
 	assert.True(t, config.TalosVersion0_10.SupportsECDSAKeys())
 	assert.True(t, config.TalosVersion0_10.SupportsServiceAccount())
 	assert.False(t, config.TalosVersion0_10.SupportsRBACFeature())
+	assert.False(t, config.TalosVersion0_10.SupportsDynamicCertSANs())
 }
 
 func TestContract0_9(t *testing.T) {
@@ -69,11 +80,13 @@ func TestContract0_9(t *testing.T) {
 	assert.True(t, config.TalosVersion0_9.SupportsECDSAKeys())
 	assert.True(t, config.TalosVersion0_9.SupportsServiceAccount())
 	assert.False(t, config.TalosVersion0_9.SupportsRBACFeature())
+	assert.False(t, config.TalosVersion0_9.SupportsDynamicCertSANs())
 }
 
 func TestContract0_8(t *testing.T) {
 	assert.False(t, config.TalosVersion0_8.SupportsAggregatorCA())
 	assert.False(t, config.TalosVersion0_8.SupportsECDSAKeys())
 	assert.False(t, config.TalosVersion0_8.SupportsServiceAccount())
-	assert.False(t, config.TalosVersion0_9.SupportsRBACFeature())
+	assert.False(t, config.TalosVersion0_8.SupportsRBACFeature())
+	assert.False(t, config.TalosVersion0_8.SupportsDynamicCertSANs())
 }

@@ -309,7 +309,7 @@ func (h *Client) WaitUntilReady(ctx context.Context, name string) error {
 					return retry.ExpectedError(err)
 				}
 
-				if apierrors.ReasonForError(err) == metav1.StatusReasonUnknown {
+				if apierrors.ReasonForError(err) == metav1.StatusReasonUnknown || IsRetryableError(err) {
 					// non-API error, e.g. networking error
 					return retry.ExpectedError(err)
 				}

@@ -9,7 +9,6 @@ import (
 	"context"
 	stdlibx509 "crypto/x509"
 	"fmt"
-	"net"
 	"net/url"
 	"time"
 
@@ -66,7 +65,7 @@ func (ctrl *KubernetesController) Outputs() []controller.Output {
 
 // Run implements controller.Controller interface.
 //
-//nolint:gocyclo
+//nolint:gocyclo,cyclop
 func (ctrl *KubernetesController) Run(ctx context.Context, r controller.Runtime, logger *zap.Logger) error {
 	// wait for the network to be ready first, then switch to regular inputs
 	for {
@@ -106,11 +105,25 @@ func (ctrl *KubernetesController) Run(ctx context.Context, r controller.Runtime,
 			ID:        pointer.ToString(timeresource.StatusID),
 			Kind:      controller.InputWeak,
 		},
+		{
+			Namespace: network.NamespaceName,
+			Type:      network.HostnameStatusType,
+			ID:        pointer.ToString(network.HostnameID),
+			Kind:      controller.InputWeak,
+		},
+		{
+			Namespace: network.NamespaceName,
+			Type:      network.NodeAddressType,
+			ID:        pointer.ToString(network.NodeAddressAccumulativeID),
+			Kind:      controller.InputWeak,
+		},
 	}); err != nil {
 		return fmt.Errorf("error updating inputs: %w", err)
 	}
 
 	r.QueueReconcile()
+
+	rateLimitedEventCh := RateLimitEvents(ctx, r.EventCh(), time.Minute)
 
 	refreshTicker := time.NewTicker(KubernetesCertificateValidityDuration / 2)
 	defer refreshTicker.Stop()
@@ -119,7 +132,7 @@ func (ctrl *KubernetesController) Run(ctx context.Context, r controller.Runtime,
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-r.EventCh():
+		case <-rateLimitedEventCh:
 		case <-refreshTicker.C:
 		}
 
@@ -152,43 +165,60 @@ func (ctrl *KubernetesController) Run(ctx context.Context, r controller.Runtime,
 			continue
 		}
 
+		hostnameResource, err := r.Get(ctx, resource.NewMetadata(network.NamespaceName, network.HostnameStatusType, network.HostnameID, resource.VersionUndefined))
+		if err != nil {
+			if state.IsNotFoundError(err) {
+				continue
+			}
+
+			return err
+		}
+
+		hostnameStatus := hostnameResource.(*network.HostnameStatus).TypedSpec()
+
+		addressesResource, err := r.Get(ctx, resource.NewMetadata(network.NamespaceName, network.NodeAddressType, network.NodeAddressAccumulativeID, resource.VersionUndefined))
+		if err != nil {
+			if state.IsNotFoundError(err) {
+				continue
+			}
+
+			return err
+		}
+
+		nodeAddresses := addressesResource.(*network.NodeAddress).TypedSpec()
+
 		if err = r.Modify(ctx, secrets.NewKubernetes(), func(r resource.Resource) error {
-			return ctrl.updateSecrets(k8sRoot, r.(*secrets.Kubernetes).Certs())
+			return ctrl.updateSecrets(k8sRoot, r.(*secrets.Kubernetes).Certs(), hostnameStatus, nodeAddresses)
 		}); err != nil {
 			return err
 		}
 	}
 }
 
-//nolint:gocyclo
-func (ctrl *KubernetesController) updateSecrets(k8sRoot *secrets.RootKubernetesSpec, k8sSecrets *secrets.KubernetesCertsSpec) error {
-	urls := []string{k8sRoot.Endpoint.Hostname()}
-	urls = append(urls, k8sRoot.CertSANs...)
-	altNames := altNamesFromURLs(urls)
+func (ctrl *KubernetesController) updateSecrets(k8sRoot *secrets.RootKubernetesSpec, k8sSecrets *secrets.KubernetesCertsSpec,
+	hostnameStatus *network.HostnameStatusSpec, nodeAddresses *network.NodeAddressSpec) error {
+	var altNames AltNames
 
-	altNames.IPs = append(altNames.IPs, k8sRoot.APIServerIPs...)
+	altNames.Append(k8sRoot.Endpoint.Hostname())
+	altNames.Append(k8sRoot.CertSANs...)
 
-	// Add kubernetes default svc with cluster domain to AltNames
-	altNames.DNSNames = append(altNames.DNSNames,
+	altNames.AppendDNSNames(
 		"kubernetes",
 		"kubernetes.default",
 		"kubernetes.default.svc",
 		"kubernetes.default.svc."+k8sRoot.DNSDomain,
+		"localhost",
 	)
 
-	// Add localhost if it is not in the list yet
-	localhostFound := false
+	altNames.Append(
+		hostnameStatus.Hostname,
+		hostnameStatus.FQDN(),
+	)
 
-	for _, dnsName := range altNames.DNSNames {
-		if dnsName == "localhost" {
-			localhostFound = true
+	altNames.AppendIPs(k8sRoot.APIServerIPs...)
 
-			break
-		}
-	}
-
-	if !localhostFound {
-		altNames.DNSNames = append(altNames.DNSNames, "localhost")
+	for _, addr := range nodeAddresses.Addresses {
+		altNames.AppendIPs(addr.IPAddr().IP)
 	}
 
 	ca, err := x509.NewCertificateAuthorityFromCertificateAndKey(k8sRoot.CA)
@@ -313,29 +343,6 @@ func (ctrl *KubernetesController) teardownAll(ctx context.Context, r controller.
 	}
 
 	return nil
-}
-
-// AltNames defines certificate alternative names.
-type AltNames struct {
-	IPs      []net.IP
-	DNSNames []string
-}
-
-func altNamesFromURLs(urls []string) *AltNames {
-	var an AltNames
-
-	for _, u := range urls {
-		ip := net.ParseIP(u)
-		if ip != nil {
-			an.IPs = append(an.IPs, ip)
-
-			continue
-		}
-
-		an.DNSNames = append(an.DNSNames, u)
-	}
-
-	return &an
 }
 
 // generateAdminAdapter allows to translate input config into GenerateAdmin input.

@@ -404,7 +404,9 @@ func create(ctx context.Context) (err error) {
 			fallthrough
 		case forceEndpoint != "":
 			endpointList = []string{forceEndpoint}
+			// using non-default endpoints, provision additional cert SANs and fix endpoint list
 			provisionOptions = append(provisionOptions, provision.WithEndpoint(forceEndpoint))
+			genOptions = append(genOptions, generate.WithAdditionalSubjectAltNames(endpointList))
 		case forceInitNodeAsEndpoint:
 			endpointList = []string{ips[0][0].String()}
 		default:

@@ -6,8 +6,8 @@ package secrets
 
 import (
 	"context"
+	stdlibx509 "crypto/x509"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -276,49 +276,42 @@ func (ctrl *APIController) reconcile(ctx context.Context, r controller.Runtime, 
 			}
 		}
 
-		ips := make([]net.IP, 0, len(rootSpec.CertSANIPs)+len(nodeAddresses.Addresses))
+		var altNames AltNames
 
-		for _, ip := range rootSpec.CertSANIPs {
-			ips = append(ips, ip.IPAddr().IP)
+		for _, ip := range append(rootSpec.CertSANIPs, nodeAddresses.Addresses...) {
+			altNames.AppendIPs(ip.IPAddr().IP)
 		}
 
-		for _, ip := range nodeAddresses.Addresses {
-			ips = append(ips, ip.IPAddr().IP)
-		}
-
-		dnsNames := make([]string, 0, len(rootSpec.CertSANDNSNames)+2)
-
-		dnsNames = append(dnsNames, rootSpec.CertSANDNSNames...)
-		dnsNames = append(dnsNames, hostnameStatus.Hostname)
-
-		if hostnameStatus.FQDN() != hostnameStatus.Hostname {
-			dnsNames = append(dnsNames, hostnameStatus.FQDN())
-		}
+		altNames.AppendDNSNames(rootSpec.CertSANDNSNames...)
+		altNames.AppendDNSNames(hostnameStatus.Hostname, hostnameStatus.FQDN())
 
 		if isControlplane {
-			if err := ctrl.generateControlPlane(ctx, r, logger, rootSpec, ips, dnsNames, hostnameStatus.FQDN()); err != nil {
+			if err := ctrl.generateControlPlane(ctx, r, logger, rootSpec, altNames, hostnameStatus.FQDN()); err != nil {
 				return err
 			}
 		} else {
-			if err := ctrl.generateJoin(ctx, r, logger, rootSpec, endpointsStr, ips, dnsNames, hostnameStatus.FQDN()); err != nil {
+			if err := ctrl.generateJoin(ctx, r, logger, rootSpec, endpointsStr, altNames, hostnameStatus.FQDN()); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func (ctrl *APIController) generateControlPlane(ctx context.Context, r controller.Runtime, logger *zap.Logger, rootSpec *secrets.RootOSSpec, ips []net.IP, dnsNames []string, fqdn string) error {
-	// TODO: add keyusage
+func (ctrl *APIController) generateControlPlane(ctx context.Context, r controller.Runtime, logger *zap.Logger, rootSpec *secrets.RootOSSpec, altNames AltNames, fqdn string) error {
 	ca, err := x509.NewCertificateAuthorityFromCertificateAndKey(rootSpec.CA)
 	if err != nil {
 		return fmt.Errorf("failed to parse CA certificate: %w", err)
 	}
 
 	serverCert, err := x509.NewKeyPair(ca,
-		x509.IPAddresses(ips),
-		x509.DNSNames(dnsNames),
+		x509.IPAddresses(altNames.IPs),
+		x509.DNSNames(altNames.DNSNames),
 		x509.CommonName(fqdn),
 		x509.NotAfter(time.Now().Add(x509.DefaultCertificateValidityDuration)),
+		x509.KeyUsage(stdlibx509.KeyUsageDigitalSignature|stdlibx509.KeyUsageKeyEncipherment),
+		x509.ExtKeyUsage([]stdlibx509.ExtKeyUsage{
+			stdlibx509.ExtKeyUsageServerAuth,
+		}),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate API server cert: %w", err)
@@ -328,6 +321,10 @@ func (ctrl *APIController) generateControlPlane(ctx context.Context, r controlle
 		x509.CommonName(fqdn),
 		x509.Organization(string(role.Impersonator)),
 		x509.NotAfter(time.Now().Add(x509.DefaultCertificateValidityDuration)),
+		x509.KeyUsage(stdlibx509.KeyUsageDigitalSignature|stdlibx509.KeyUsageKeyEncipherment),
+		x509.ExtKeyUsage([]stdlibx509.ExtKeyUsage{
+			stdlibx509.ExtKeyUsageClientAuth,
+		}),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate API client cert: %w", err)
@@ -360,7 +357,7 @@ func (ctrl *APIController) generateControlPlane(ctx context.Context, r controlle
 }
 
 func (ctrl *APIController) generateJoin(ctx context.Context, r controller.Runtime, logger *zap.Logger,
-	rootSpec *secrets.RootOSSpec, endpointsStr []string, ips []net.IP, dnsNames []string, fqdn string) error {
+	rootSpec *secrets.RootOSSpec, endpointsStr []string, altNames AltNames, fqdn string) error {
 	remoteGen, err := gen.NewRemoteGenerator(rootSpec.Token, endpointsStr)
 	if err != nil {
 		return fmt.Errorf("failed creating trustd client: %w", err)
@@ -369,8 +366,8 @@ func (ctrl *APIController) generateJoin(ctx context.Context, r controller.Runtim
 	defer remoteGen.Close() //nolint:errcheck
 
 	serverCSR, serverCert, err := x509.NewEd25519CSRAndIdentity(
-		x509.IPAddresses(ips),
-		x509.DNSNames(dnsNames),
+		x509.IPAddresses(altNames.IPs),
+		x509.DNSNames(altNames.DNSNames),
 		x509.CommonName(fqdn),
 	)
 	if err != nil {
@@ -392,6 +389,7 @@ func (ctrl *APIController) generateJoin(ctx context.Context, r controller.Runtim
 		return fmt.Errorf("failed to generate API client CSR: %w", err)
 	}
 
+	// TODO: add keyusage: trustd should accept key usage as additional params
 	_, clientCert.Crt, err = remoteGen.IdentityContext(ctx, clientCSR)
 	if err != nil {
 		return fmt.Errorf("failed to sign API client CSR: %w", err)
