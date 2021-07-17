@@ -111,6 +111,7 @@ func (*Sequencer) Initialize(r runtime.Runtime) []runtime.Phase {
 		).Append(
 			"integrity",
 			WriteIMAPolicy,
+			SetupSystemCgroups,
 		).Append(
 			"etc",
 			CreateOSReleaseFile,

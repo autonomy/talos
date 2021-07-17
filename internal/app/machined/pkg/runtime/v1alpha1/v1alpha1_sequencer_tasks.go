@@ -129,6 +129,31 @@ func SetupSystemDirectory(seq runtime.Sequence, data interface{}) (runtime.TaskE
 	}, "setupSystemDirectory"
 }
 
+// SetupSystemCgroups represents the SetupSystemCgroups task.
+func SetupSystemCgroups(seq runtime.Sequence, data interface{}) (runtime.TaskExecutionFunc, string) {
+	return func(ctx context.Context, logger *log.Logger, r runtime.Runtime) (err error) {
+
+		initPid := []byte(strconv.Itoa(1))
+		groups := []string{
+			"init",
+			"kubelet",
+		}
+
+		for _, c := range groups {
+			p := path.Join("/sys/fs/cgroup/", c)
+			if err = os.MkdirAll(p, 0o755); err != nil {
+				return fmt.Errorf("failed to create default cgroup: %w", err)
+			}
+		}
+
+		if err = ioutil.WriteFile("/sys/fs/cgroup/init/cgroup.procs", initPid, os.FileMode(0o644)); err != nil {
+			return fmt.Errorf("failed to move init process to cgroup: %w", err)
+		}
+
+		return nil
+	}, "SetupSystemCgroups"
+}
+
 // MountBPFFS represents the MountBPFFS task.
 func MountBPFFS(seq runtime.Sequence, data interface{}) (runtime.TaskExecutionFunc, string) {
 	return func(ctx context.Context, logger *log.Logger, r runtime.Runtime) (err error) {
@@ -163,12 +188,6 @@ func MountCgroups(seq runtime.Sequence, data interface{}) (runtime.TaskExecution
 
 		if err = mount.Mount(mountpoints); err != nil {
 			return err
-		}
-
-		// See https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
-		target := path.Join("/sys/fs/cgroup", memoryCgroup, memoryUseHierarchy)
-		if err = ioutil.WriteFile(target, memoryUseHierarchyContents, memoryUseHierarchyPermissions); err != nil {
-			return fmt.Errorf("failed to enable memory hierarchy support: %w", err)
 		}
 
 		return nil
