@@ -34,7 +34,7 @@ This means that instead of making all of `/etc` writable, Talos only makes very 
 
 All files under `/system` are completely reproducible.
 For files and directories that need to persist across boots, Talos creates `overlayfs` file systems.
-The `/etc/kuberentes` is a good example of this.
+The `/etc/kubernetes` is a good example of this.
 Directories like this are `overlayfs` backed by an XFS file system mounted at `/var`.
 
 The `/var` directory is owned by Kubernetes with the exception of the above `overlayfs` file systems.
