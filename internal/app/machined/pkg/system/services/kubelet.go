@@ -266,12 +266,15 @@ func newKubeletConfiguration(clusterDNS []string, dnsDomain string) *kubeletconf
 			},
 		},
 		Authorization: kubeletconfig.KubeletAuthorization{
-			Mode: kubeletconfig.KubeletAuthorizationModeWebhook,
+			Mode: kubeletconfig.KubeletAuthorizationModeAlwaysAllow,
 		},
 		ClusterDomain:       dnsDomain,
 		ClusterDNS:          clusterDNS,
 		SerializeImagePulls: &f,
 		FailSwapOn:          &f,
+		CgroupRoot:          "/",
+		SystemCgroups:       "/system",
+		KubeletCgroups:      "/kubelet",
 	}
 }
 
